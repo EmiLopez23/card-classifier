@@ -8,28 +8,12 @@ import ResultCard from "@/components/result-card";
 
 export default function Home() {
   const [files, setFiles] = useState<File[] | undefined>();
-  const [filePreview, setFilePreview] = useState<string | undefined>();
-  const { isAnalyzing, result, error, analyze, reset } = useCardAnalyzer();
+  const { isAnalyzing, items, enqueue, clear } = useCardAnalyzer();
 
   const handleDrop = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
-    reset();
-
-    // Create preview for images
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (typeof e.target?.result === "string") {
-            setFilePreview(e.target.result);
-          }
-        };
-        reader.readAsDataURL(file);
-      } else {
-        setFilePreview(undefined);
-      }
-    }
+    // new selection resets previous results
+    clear();
   };
 
   const handleError = (error: Error) => {
@@ -38,9 +22,8 @@ export default function Home() {
 
   const handleSubmit = async () => {
     if (!files || files.length === 0) return;
-    const formData = new FormData();
-    formData.append("file", files[0]);
-    await analyze(formData);
+    enqueue(files);
+    setFiles(undefined);
   };
 
   return (
@@ -60,13 +43,36 @@ export default function Home() {
 
         <UploadCard
           files={files}
-          filePreview={filePreview}
           isAnalyzing={isAnalyzing}
           handleDrop={handleDrop}
           handleError={handleError}
           handleSubmit={handleSubmit}
         />
-        <ResultCard result={result} error={error} loading={isAnalyzing} />
+        <div className="flex flex-col gap-3">
+          {(!items || items.length === 0) && (
+            <ResultCard result={null} error={null} loading={false} />
+          )}
+          {items.map((item) => (
+            <div key={item.id} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  {item.fileName}
+                </p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {item.status === "pending" && "Queued"}
+                  {item.status === "processing" && "Processing"}
+                  {item.status === "done" && "Completed"}
+                  {item.status === "error" && "Error"}
+                </p>
+              </div>
+              <ResultCard
+                result={item.result}
+                error={item.error}
+                loading={item.status === "processing"}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
