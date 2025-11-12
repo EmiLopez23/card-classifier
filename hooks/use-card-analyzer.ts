@@ -12,14 +12,9 @@ export const useCardAnalyzer = () => {
 
     try {
       const response = await analyzeCard(formData);
-      if (!response.ok || "error" in response) {
-        const errorData = response as ErrorResponse;
-        setError(errorData.reason);
-      } else {
-        setResult(response as PSACard);
-      }
+      setResult(response);
     } catch (error) {
-      setError(error as string);
+      setError((error as Error).message);
     } finally {
       setIsAnalyzing(false);
     }
