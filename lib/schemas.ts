@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Schema for NBA PSA Certified Card
-export const psaCardSchema = z.object({
+export const PSACardSchema = z.object({
   // PSA Information
   psa: z.object({
     certificationNumber: z
@@ -68,12 +68,12 @@ export const psaCardSchema = z.object({
   }),
 });
 
-export type PSACard = z.infer<typeof psaCardSchema>;
+export type PSACard = z.infer<typeof PSACardSchema>;
 
 // Error response schema
-export const errorResponseSchema = z.object({
+export const errorSchema = z.object({
   error: z.literal("image_not_supported"),
   reason: z.string(),
 });
 
-export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+export type ErrorResponse = z.infer<typeof errorSchema>;
