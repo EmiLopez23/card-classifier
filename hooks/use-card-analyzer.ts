@@ -7,11 +7,11 @@ export const useCardAnalyzer = () => {
   const [result, setResult] = useState<PSACard | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const analyze = async (file: File) => {
+  const analyze = async (formData: FormData) => {
     setIsAnalyzing(true);
 
     try {
-      const response = await analyzeCard(file);
+      const response = await analyzeCard(formData);
       if (!response.ok || "error" in response) {
         const errorData = response as ErrorResponse;
         setError(errorData.reason);

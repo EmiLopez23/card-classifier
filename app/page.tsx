@@ -51,7 +51,9 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!files || files.length === 0) return;
-    await analyze(files[0]);
+    const formData = new FormData();
+    formData.append("file", files[0]);
+    await analyze(formData);
   };
 
   return (

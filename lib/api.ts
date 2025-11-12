@@ -1,7 +1,7 @@
-export const analyzeCard = async (file: File) => {
+export const analyzeCard = async (formData: FormData) => {
   const response = await fetch("/api/analyze-card", {
     method: "POST",
-    body: file,
+    body: formData,
   });
   return response.json();
 };
