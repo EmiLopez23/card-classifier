@@ -15,20 +15,17 @@ import {
   DropzoneContent,
   DropzoneEmptyState,
 } from "@/components/ui/shadcn-io/dropzone";
-import type { PSACard, ErrorResponse } from "@/lib/schemas";
+import { useCardAnalyzer } from "@/hooks";
+import { toast } from "sonner";
 
 export default function Home() {
   const [files, setFiles] = useState<File[] | undefined>();
   const [filePreview, setFilePreview] = useState<string | undefined>();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<PSACard | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { isAnalyzing, result, error, analyze, reset } = useCardAnalyzer();
 
   const handleDrop = (acceptedFiles: File[]) => {
-    console.log("Files dropped:", acceptedFiles);
     setFiles(acceptedFiles);
-    setResult(null);
-    setError(null);
+    reset();
 
     // Create preview for images
     if (acceptedFiles.length > 0) {
@@ -48,41 +45,13 @@ export default function Home() {
   };
 
   const handleError = (error: Error) => {
-    console.error("Dropzone error:", error);
-    alert(error.message);
+    toast.error(error.message);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!files || files.length === 0) return;
-
-    setIsAnalyzing(true);
-    setResult(null);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", files[0]);
-
-      const response = await fetch("/api/analyze-card", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || "error" in data) {
-        const errorData = data as ErrorResponse;
-        setError(errorData.reason);
-      } else {
-        setResult(data as PSACard);
-      }
-    } catch (err) {
-      console.error("Analysis error:", err);
-      setError("Failed to analyze the card. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    await analyze(files[0]);
   };
 
   return (
