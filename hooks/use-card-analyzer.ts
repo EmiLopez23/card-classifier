@@ -1,6 +1,7 @@
+import { analyzeCard } from "@/actions/analyze";
 import { ErrorResponse, PSACard } from "@/lib/schemas";
+import { readStreamableValue, StreamableValue } from "@ai-sdk/rsc";
 import { useState } from "react";
-import { analyzeCard } from "@/lib/api";
 
 export const useCardAnalyzer = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -8,13 +9,19 @@ export const useCardAnalyzer = () => {
   const [error, setError] = useState<string | null>(null);
 
   const analyze = async (formData: FormData) => {
-    setIsAnalyzing(true);
-
     try {
-      const response = await analyzeCard(formData);
-      setResult(response);
-    } catch (error) {
-      setError((error as Error).message);
+      setIsAnalyzing(true);
+      const { object } = await analyzeCard(formData);
+
+      for await (const partialObject of readStreamableValue(
+        object as StreamableValue<any, any>
+      )) {
+        if (partialObject) {
+          setResult(partialObject);
+        }
+      }
+    } catch (error: any) {
+      setError(error.message as string);
     } finally {
       setIsAnalyzing(false);
     }
