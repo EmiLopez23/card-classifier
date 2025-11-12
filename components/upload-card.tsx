@@ -1,11 +1,10 @@
-import { FileText, Loader2, Upload } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardFooter } from "./ui/card";
 import { Dropzone, DropzoneContent, DropzoneEmptyState } from "./ui/dropzone";
 
 interface UploadCardProps {
   files: File[] | undefined;
-  filePreview: string | undefined;
   isAnalyzing: boolean;
   handleDrop: (acceptedFiles: File[]) => void;
   handleError: (error: Error) => void;
@@ -14,7 +13,6 @@ interface UploadCardProps {
 
 export default function UploadCard({
   files,
-  filePreview,
   isAnalyzing,
   handleDrop,
   handleError,
@@ -29,7 +27,7 @@ export default function UploadCard({
             "image/*": [".png", ".jpg", ".jpeg", ".gif", ".webp"],
             "application/pdf": [".pdf"],
           }}
-          maxFiles={1}
+          maxFiles={10}
           maxSize={1024 * 1024 * 10} // 10MB
           onDrop={handleDrop}
           onError={handleError}
@@ -38,33 +36,7 @@ export default function UploadCard({
           disabled={isAnalyzing}
         >
           <DropzoneEmptyState />
-          <DropzoneContent>
-            {files && files.length > 0 && (
-              <>
-                {filePreview ? (
-                  <div className="relative rounded-lg overflow-hidden h-[400px]">
-                    <img
-                      alt="Preview"
-                      className="w-full h-full object-contain"
-                      src={filePreview}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg">
-                      <FileText className="h-12 w-12 text-red-500" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-medium text-sm">{files[0].name}</p>
-                      <p className="text-muted-foreground text-xs">
-                        Click or drag to replace
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </DropzoneContent>
+          <DropzoneContent />
         </Dropzone>
       </CardContent>
       <CardFooter>
@@ -79,12 +51,12 @@ export default function UploadCard({
           {isAnalyzing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analyzing Card...
+              Analyzing...
             </>
           ) : (
             <>
               <Upload className="mr-2 h-4 w-4" />
-              Analyze Card
+              {`Analyze ${files?.length ?? 0} ${files && files.length === 1 ? "Card" : "Cards"}`}
             </>
           )}
         </Button>
