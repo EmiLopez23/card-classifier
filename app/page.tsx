@@ -1,21 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileText, Loader2, CheckCircle, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dropzone,
-  DropzoneContent,
-  DropzoneEmptyState,
-} from "@/components/ui/dropzone";
 import { useCardAnalyzer } from "@/hooks";
 import { toast } from "sonner";
 import UploadCard from "@/components/upload-card";
