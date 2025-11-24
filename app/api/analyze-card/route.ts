@@ -3,6 +3,8 @@ import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { PSACardSchema, errorSchema } from "@/lib/schemas";
+import { storeCardEmbeddings } from "@/lib/vector-store";
+import { randomUUID } from "crypto";
 
 export const maxDuration = 30;
 
@@ -86,7 +88,18 @@ Focus on:
       return NextResponse.json(result.object, { status: 400 });
     }
 
-    return NextResponse.json(result.object);
+    // Store embeddings in Pinecone (async, don't block response)
+    const cardId = randomUUID();
+
+    storeCardEmbeddings(cardId, result.object, buffer).catch((error) => {
+      console.error("Failed to store embeddings:", error);
+      // Don't fail the request if embedding storage fails
+    });
+
+    return NextResponse.json({
+      ...result.object,
+      cardId, // Include the generated card ID in the response
+    });
   } catch (error: any) {
     console.error("Request processing error:", error);
     return NextResponse.json(
