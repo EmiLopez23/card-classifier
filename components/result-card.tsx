@@ -13,7 +13,6 @@ export default function ResultCard({
   error,
   loading,
 }: ResultCardProps) {
-  console.log(result, error, loading);
   if (loading) {
     return (
       <Card className="shadow-none">
