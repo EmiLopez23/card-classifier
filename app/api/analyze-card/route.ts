@@ -5,6 +5,7 @@ import { z } from "zod";
 import { PSACardSchema, errorSchema } from "@/lib/schemas";
 import { storeCardEmbeddings } from "@/lib/vector-store";
 import { randomUUID } from "crypto";
+import { SYSTEM_PROMPT, USER_PROMPT } from "@/lib/const";
 
 export const maxDuration = 30;
 
@@ -53,27 +54,14 @@ export async function POST(request: NextRequest) {
     const result = await generateObject({
       model: google("gemini-2.5-flash"),
       schema: PSACardSchema.or(errorSchema),
-      system: `You are an expert PSA card grading specialist with deep knowledge of:
-- NBA basketball cards from all eras (1950s-present)
-- PSA grading standards and label formats
-- Card manufacturers (Topps, Panini, Upper Deck, Fleer, etc.)
-- Card variants (Rookie, Refractor, Prizm, Autographs, etc.)
-- Authentication of PSA certification labels
-
-Your task is to analyze images of PSA-graded NBA cards and extract accurate information.
-If the image is NOT a valid PSA certified NBA card, return an error with a specific reason.`,
+      system: SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this image. Extract ALL visible information if it's a valid PSA certified NBA card.
-Focus on:
-- PSA label: certification number, grade (1-10), grade label
-- Player: name, team, position
-- Card: year, brand, set name, card number, variants
-- Special features: rookie card, autographed, serial numbers`,
+              text: USER_PROMPT,
             },
             {
               type: "image",
@@ -102,10 +90,27 @@ Focus on:
     });
   } catch (error: any) {
     console.error("Request processing error:", error);
+    const message = String(error?.message ?? "");
+    const statusCode = Number(error?.statusCode ?? 0);
+    const isOverloaded =
+      statusCode === 503 ||
+      message.toLowerCase().includes("overloaded") ||
+      message.toLowerCase().includes("unavailable");
+
+    if (isOverloaded) {
+      return NextResponse.json(
+        {
+          error: "model_overloaded",
+          reason: "The model is overloaded. Retrying shortly.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: "image_not_supported",
-        reason: error.message,
+        reason: message || "Unknown error",
       },
       { status: 500 }
     );
