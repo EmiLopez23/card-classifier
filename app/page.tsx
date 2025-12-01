@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useCardAnalyzer } from "@/hooks";
+import { useCardAnalyzer, useCardSearch } from "@/hooks";
 import { toast } from "sonner";
 import UploadCard from "@/components/upload-card";
 import ResultCard from "@/components/result-card";
+import CardSearch from "@/components/card-search";
+import SearchResults from "@/components/search-results";
 
 export default function Home() {
   const [files, setFiles] = useState<File[] | undefined>();
   const { isAnalyzing, items, enqueue, clear } = useCardAnalyzer();
+  const { search, isSearching, results, error: searchError, lastQuery } = useCardSearch();
 
   const handleDrop = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
@@ -24,10 +27,22 @@ export default function Home() {
     if (!files || files.length === 0) return;
     enqueue(files);
     setFiles(undefined);
+    toast.success("Card uploaded! Wait 10+ seconds before searching.");
+  };
+
+  const handleSearch = async (
+    query: string,
+    filters: any,
+    weights: { text: number; image: number }
+  ) => {
+    await search(query, filters, weights);
+    if (searchError) {
+      toast.error(searchError);
+    }
   };
 
   return (
-    <div className="min-h-screen px-4 py-12 flex flex-col gap-4">
+    <div className="min-h-screen px-4 py-12 flex flex-col gap-6">
       {/* Hero Section */}
       <div className="text-center space-y-4">
         <h1 className="text-5xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-6xl">
@@ -35,12 +50,13 @@ export default function Home() {
         </h1>
         <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
           Upload your PSA certified NBA card for intelligent classification and
-          analysis
+          search similar cards using multimodal RAG
         </p>
       </div>
-      <div className="gap-4 flex-1 grid grid-cols-2">
-        {/* Upload Card */}
 
+      {/* Upload & Results Section */}
+      <div className="gap-4 grid grid-cols-2">
+        {/* Upload Card */}
         <UploadCard
           files={files}
           isAnalyzing={isAnalyzing}
@@ -48,6 +64,8 @@ export default function Home() {
           handleError={handleError}
           handleSubmit={handleSubmit}
         />
+        
+        {/* Upload Results */}
         <div className="flex flex-col gap-3">
           {(!items || items.length === 0) && (
             <ResultCard result={null} error={null} loading={false} />
@@ -72,6 +90,21 @@ export default function Home() {
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Search Section */}
+      <div className="gap-4 grid grid-cols-2">
+        {/* Search Input */}
+        <CardSearch onSearch={handleSearch} isSearching={isSearching} />
+        
+        {/* Search Results */}
+        <div className="flex flex-col">
+          <SearchResults 
+            results={results} 
+            loading={isSearching} 
+            query={lastQuery}
+          />
         </div>
       </div>
     </div>

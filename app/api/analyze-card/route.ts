@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // Store embeddings in Pinecone (async, don't block response)
     const cardId = randomUUID();
 
-    storeCardEmbeddings(cardId, result.object, buffer).catch((error) => {
+    storeCardEmbeddings(cardId, result.object, buffer, mimeType).catch((error) => {
       console.error("Failed to store embeddings:", error);
       // Don't fail the request if embedding storage fails
     });

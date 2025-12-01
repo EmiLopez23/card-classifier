@@ -22,7 +22,8 @@ export interface CardVectorRecord {
 export async function storeCardEmbeddings(
   cardId: string,
   cardData: PSACard,
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
+  mimeType?: string
 ): Promise<void> {
   try {
     const textIndex = getTextIndex();
@@ -34,8 +35,9 @@ export async function storeCardEmbeddings(
     const textEmbedding = await generateTextEmbedding(textDescription);
 
     // Convert Buffer to RawImage and generate image embedding
+    // RawImage.read() can automatically detect the image format from the buffer
     const uint8Array = new Uint8Array(imageBuffer);
-    const blob = new Blob([uint8Array], { type: "image/png" });
+    const blob = new Blob([uint8Array], { type: mimeType || "image/jpeg" });
     const rawImage = await RawImage.fromBlob(blob);
     const imageEmbedding = await generateCLIPImageEmbedding(rawImage);
 
@@ -126,42 +128,41 @@ export async function hybridSearch(params: HybridSearchParams): Promise<any[]> {
 
   try {
     const textIndex = getTextIndex();
-    const imageIndex = getImageIndex();
     const namespace = "cards";
 
-    // Generate both embeddings from the text query
-    const [textEmbedding, clipTextEmbedding] = await Promise.all([
-      generateTextEmbedding(query),
-      // CLIP text embedding will match against CLIP image embeddings
-      import("./embeddings").then((m) => m.generateCLIPTextEmbedding(query)),
-    ]);
+    // Generate text embedding from the query
+    const textEmbedding = await generateTextEmbedding(query);
 
-    // Query text index
+    // Log if filtering by PSA cert number
+    if (filter && 'psa_cert_number' in filter) {
+      console.log(`Filtering by PSA cert number: ${filter.psa_cert_number}`);
+    }
+
+    // Query text index with metadata filter
+    // Pinecone will apply the filter natively during the search
     const textResults = await textIndex.namespace(namespace).query({
       vector: textEmbedding,
-      topK: topK * 2, // Get more candidates for reranking
+      topK: topK * 2, // Get more candidates for scoring
       includeMetadata: true,
       filter,
     });
 
-    // Query image index using CLIP text embedding
-    const imageResults = await imageIndex.namespace(namespace).query({
-      vector: clipTextEmbedding,
-      topK: topK * 2,
-      includeMetadata: true,
-      filter,
-    });
+    // Check if this was a PSA cert exact match search - if so, give perfect scores
+    const isPSASearch = filter && 'psa_cert_number' in filter;
 
-    // Merge and rerank results
-    const mergedResults = mergeResults(
-      textResults.matches || [],
-      imageResults.matches || [],
-      textWeight,
-      imageWeight
-    );
+    // Apply weighted scoring
+    const scoredResults = (textResults.matches || []).map((match) => ({
+      cardId: match.id,
+      textScore: isPSASearch ? 1.0 : (match.score || 0),
+      imageScore: isPSASearch ? 1.0 : (match.score || 0),
+      combinedScore: isPSASearch ? 1.0 : ((match.score || 0) * (textWeight + imageWeight / 2)),
+      metadata: match.metadata || {},
+    }));
 
-    // Return top K results
-    return mergedResults.slice(0, topK);
+    // Sort by combined score and return top K
+    const sortedResults = scoredResults.sort((a, b) => b.combinedScore - a.combinedScore);
+
+    return sortedResults.slice(0, topK);
   } catch (error) {
     console.error("Error performing hybrid search:", error);
     throw new Error("Failed to perform hybrid search");

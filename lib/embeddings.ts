@@ -5,7 +5,6 @@ env.allowLocalModels = false;
 
 // Cache for embedding models (singleton pattern)
 let textEmbeddingPipeline: FeatureExtractionPipeline | null = null;
-let clipTextPipeline: FeatureExtractionPipeline | null = null;
 let clipVisionPipeline: ImageFeatureExtractionPipeline | null = null;
 
 /**
@@ -31,34 +30,6 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
   } catch (error) {
     console.error("Error generating text embedding:", error);
     throw new Error("Failed to generate text embedding");
-  }
-}
-
-/**
- * Generate CLIP text embeddings
- * Used to match text queries against image embeddings
- */
-export async function generateCLIPTextEmbedding(
-  text: string
-): Promise<number[]> {
-  try {
-    if (!clipTextPipeline) {
-      console.log("Loading CLIP text model...");
-      clipTextPipeline = await pipeline(
-        "feature-extraction",
-        "Xenova/clip-vit-base-patch32"
-      );
-    }
-
-    const output = await clipTextPipeline(text, {
-      pooling: "mean",
-      normalize: true,
-    });
-
-    return Array.from(output.data);
-  } catch (error) {
-    console.error("Error generating CLIP text embedding:", error);
-    throw new Error("Failed to generate CLIP text embedding");
   }
 }
 
