@@ -1,32 +1,18 @@
 import { useState } from "react";
+import { SearchFilters, SearchWeights, SearchResult } from "@/types/search";
+import { SEARCH_DEFAULTS } from "@/constants/search";
+import { buildPineconeFilters } from "@/lib/search-utils";
 
-interface SearchFilters {
-  minGrade?: number;
-  maxGrade?: number;
-  rookie?: boolean;
-  autographed?: boolean;
-  minYear?: number;
-  maxYear?: number;
-  player?: string;
-  brand?: string;
+interface UseCardSearchReturn {
+  search: (query: string, filters?: SearchFilters, weights?: SearchWeights) => Promise<void>;
+  isSearching: boolean;
+  results: SearchResult[] | null;
+  error: string | null;
+  lastQuery: string;
+  clearResults: () => void;
 }
 
-interface SearchWeights {
-  text: number;
-  image: number;
-}
-
-interface SearchResult {
-  cardId: string;
-  scores: {
-    text: number;
-    image: number;
-    combined: number;
-  };
-  card: any;
-}
-
-export function useCardSearch() {
+export function useCardSearch(): UseCardSearchReturn {
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,74 +21,23 @@ export function useCardSearch() {
   const search = async (
     query: string,
     filters: SearchFilters = {},
-    weights: SearchWeights = { text: 0.5, image: 0.5 }
+    weights: SearchWeights = {
+      text: SEARCH_DEFAULTS.TEXT_WEIGHT,
+      image: SEARCH_DEFAULTS.IMAGE_WEIGHT,
+    }
   ) => {
     setIsSearching(true);
     setError(null);
     setLastQuery(query);
 
     try {
-      // Build filter object for Pinecone
-      const pineconeFilters: any = {};
-
-      // Auto-detect PSA certification number search
-      // If query is a number (with optional spaces/dashes), treat as cert number search
-      const cleanQuery = query.replace(/[\s-]/g, "");
-      const isPSACertNumber = /^\d{6,}$/.test(cleanQuery);
-      
-      if (isPSACertNumber) {
-        // Exact match on PSA cert number using Pinecone $eq operator
-        pineconeFilters.psa_cert_number = { $eq: cleanQuery };
-        console.log(`Detected PSA cert number search: ${cleanQuery}`);
-      }
-
-      if (filters.minGrade !== undefined || filters.maxGrade !== undefined) {
-        if (filters.minGrade !== undefined && filters.maxGrade !== undefined) {
-          pineconeFilters.psa_grade = {
-            $gte: filters.minGrade,
-            $lte: filters.maxGrade,
-          };
-        } else if (filters.minGrade !== undefined) {
-          pineconeFilters.psa_grade = { $gte: filters.minGrade };
-        } else if (filters.maxGrade !== undefined) {
-          pineconeFilters.psa_grade = { $lte: filters.maxGrade };
-        }
-      }
-
-      if (filters.minYear !== undefined || filters.maxYear !== undefined) {
-        if (filters.minYear !== undefined && filters.maxYear !== undefined) {
-          pineconeFilters.card_year = {
-            $gte: filters.minYear,
-            $lte: filters.maxYear,
-          };
-        } else if (filters.minYear !== undefined) {
-          pineconeFilters.card_year = { $gte: filters.minYear };
-        } else if (filters.maxYear !== undefined) {
-          pineconeFilters.card_year = { $lte: filters.maxYear };
-        }
-      }
-
-      if (filters.rookie !== undefined) {
-        pineconeFilters.card_rookie = filters.rookie;
-      }
-
-      if (filters.autographed !== undefined) {
-        pineconeFilters.card_autographed = filters.autographed;
-      }
-
-      if (filters.player) {
-        pineconeFilters.player_name = filters.player;
-      }
-
-      if (filters.brand) {
-        pineconeFilters.card_brand = filters.brand;
-      }
+      const pineconeFilters = buildPineconeFilters(filters, query);
 
       const requestBody: any = {
         query,
         textWeight: weights.text,
         imageWeight: weights.image,
-        topK: 10,
+        topK: SEARCH_DEFAULTS.TOP_K,
       };
 
       // Only add filters if there are any
@@ -150,4 +85,3 @@ export function useCardSearch() {
     clearResults,
   };
 }
-

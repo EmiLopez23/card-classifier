@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useCardAnalyzer, useCardSearch } from "@/hooks";
 import { toast } from "sonner";
+import { useCardAnalyzer, useCardSearch } from "@/hooks";
+import { SearchFilters, SearchWeights } from "@/types/search";
 import UploadCard from "@/components/upload-card";
 import ResultCard from "@/components/result-card";
 import CardSearch from "@/components/card-search";
@@ -15,8 +16,7 @@ export default function Home() {
 
   const handleDrop = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
-    // new selection resets previous results
-    clear();
+    clear(); // Reset previous results
   };
 
   const handleError = (error: Error) => {
@@ -32,8 +32,8 @@ export default function Home() {
 
   const handleSearch = async (
     query: string,
-    filters: any,
-    weights: { text: number; image: number }
+    filters: SearchFilters,
+    weights: SearchWeights
   ) => {
     await search(query, filters, weights);
     if (searchError) {
@@ -44,7 +44,7 @@ export default function Home() {
   return (
     <div className="min-h-screen px-4 py-12 flex flex-col gap-6">
       {/* Hero Section */}
-      <div className="text-center space-y-4">
+      <header className="text-center space-y-4">
         <h1 className="text-5xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-6xl">
           Card Classifier
         </h1>
@@ -52,10 +52,10 @@ export default function Home() {
           Upload your PSA certified NBA card for intelligent classification and
           search similar cards using multimodal RAG
         </p>
-      </div>
+      </header>
 
       {/* Upload & Results Section */}
-      <div className="gap-4 grid grid-cols-2">
+      <section className="gap-4 grid grid-cols-2">
         {/* Upload Card */}
         <UploadCard
           files={files}
@@ -64,7 +64,7 @@ export default function Home() {
           handleError={handleError}
           handleSubmit={handleSubmit}
         />
-        
+
         {/* Upload Results */}
         <div className="flex flex-col gap-3">
           {(!items || items.length === 0) && (
@@ -77,10 +77,7 @@ export default function Home() {
                   {item.fileName}
                 </p>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {item.status === "pending" && "Queued"}
-                  {item.status === "processing" && "Processing"}
-                  {item.status === "done" && "Completed"}
-                  {item.status === "error" && "Error"}
+                  {getStatusLabel(item.status)}
                 </p>
               </div>
               <ResultCard
@@ -91,22 +88,32 @@ export default function Home() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Search Section */}
-      <div className="gap-4 grid grid-cols-2">
+      <section className="gap-4 grid grid-cols-2">
         {/* Search Input */}
         <CardSearch onSearch={handleSearch} isSearching={isSearching} />
-        
+
         {/* Search Results */}
         <div className="flex flex-col">
-          <SearchResults 
-            results={results} 
-            loading={isSearching} 
+          <SearchResults
+            results={results}
+            loading={isSearching}
             query={lastQuery}
           />
         </div>
-      </div>
+      </section>
     </div>
   );
+}
+
+function getStatusLabel(status: string): string {
+  const statusMap: Record<string, string> = {
+    pending: "Queued",
+    processing: "Processing",
+    done: "Completed",
+    error: "Error",
+  };
+  return statusMap[status] || status;
 }

@@ -28,7 +28,7 @@ export async function storeCardEmbeddings(
   try {
     const textIndex = getTextIndex();
     const imageIndex = getImageIndex();
-    const namespace = "cards"; // Using a single namespace for all cards
+    const namespace = "cards"; 
 
     // Generate text description and embedding
     const textDescription = createCardTextDescription(cardData);
