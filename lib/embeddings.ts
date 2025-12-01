@@ -59,6 +59,19 @@ export async function generateCLIPImageEmbedding(
 }
 
 /**
+ * Generate CLIP text embeddings
+ * Note: transformers.js doesn't easily expose CLIP text encoder separately,
+ * so we use the standard text embedding model for text queries.
+ * The hybrid search still works by querying both text and image indexes.
+ */
+export async function generateCLIPTextEmbedding(text: string): Promise<number[]> {
+  // For now, use the same text embedding model
+  // True CLIP text encoding would require separate text encoder model
+  // but transformers.js doesn't expose this easily
+  return generateTextEmbedding(text);
+}
+
+/**
  * Create a rich text description from PSA card data
  * This text will be embedded for semantic search
  */

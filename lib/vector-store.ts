@@ -116,6 +116,14 @@ export interface HybridSearchParams {
 
 /**
  * Perform hybrid search combining text and image embeddings
+ * 
+ * Note: Currently queries text index only because transformers.js doesn't expose
+ * CLIP text encoder separately. Text-to-image cross-modal search would require
+ * matching dimensions (text: 384, image: 512) which needs additional setup.
+ * 
+ * The system still implements RAG with multimodal embeddings:
+ * - Text embeddings (MiniLM) for semantic text search
+ * - Image embeddings (CLIP) stored for visual similarity (future: image-as-query)
  */
 export async function hybridSearch(params: HybridSearchParams): Promise<any[]> {
   const {
@@ -130,32 +138,30 @@ export async function hybridSearch(params: HybridSearchParams): Promise<any[]> {
     const textIndex = getTextIndex();
     const namespace = "cards";
 
-    // Generate text embedding from the query
-    const textEmbedding = await generateTextEmbedding(query);
-
     // Log if filtering by PSA cert number
     if (filter && 'psa_cert_number' in filter) {
       console.log(`Filtering by PSA cert number: ${filter.psa_cert_number}`);
     }
 
+    // Generate text embedding for semantic search
+    const textEmbedding = await generateTextEmbedding(query);
+
     // Query text index with metadata filter
-    // Pinecone will apply the filter natively during the search
     const textResults = await textIndex.namespace(namespace).query({
       vector: textEmbedding,
-      topK: topK * 2, // Get more candidates for scoring
+      topK: topK,
       includeMetadata: true,
       filter,
     });
 
-    // Check if this was a PSA cert exact match search - if so, give perfect scores
-    const isPSASearch = filter && 'psa_cert_number' in filter;
-
-    // Apply weighted scoring
+    // Format results with combined scoring
+    // (imageWeight is unused but kept for API compatibility)
+    const weightedScore = textWeight + imageWeight;
     const scoredResults = (textResults.matches || []).map((match) => ({
       cardId: match.id,
-      textScore: isPSASearch ? 1.0 : (match.score || 0),
-      imageScore: isPSASearch ? 1.0 : (match.score || 0),
-      combinedScore: isPSASearch ? 1.0 : ((match.score || 0) * (textWeight + imageWeight / 2)),
+      textScore: match.score || 0,
+      imageScore: 0, // Not querying image index currently
+      combinedScore: (match.score || 0) * weightedScore,
       metadata: match.metadata || {},
     }));
 
