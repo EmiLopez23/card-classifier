@@ -1,11 +1,8 @@
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { PSACardSchema, errorSchema } from "@/lib/schemas";
+import { analyzeCard } from "@/actions/analyze";
 import { storeCardEmbeddings } from "@/lib/vector-store";
 import { randomUUID } from "crypto";
-import { SYSTEM_PROMPT, USER_PROMPT } from "@/lib/const";
+import { PSACardSchema } from "@/lib/schemas";
 
 export const maxDuration = 30;
 
@@ -45,47 +42,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert file to base64 for AI processing
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString("base64");
-    const mimeType = file.type;
+    // Use LangGraph-based analyzeCard action
+    const result = await analyzeCard(formData);
 
-    const result = await generateObject({
-      model: google("gemini-2.5-flash"),
-      schema: PSACardSchema.or(errorSchema),
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: USER_PROMPT,
-            },
-            {
-              type: "image",
-              image: `data:${mimeType};base64,${base64}`,
-            },
-          ],
-        },
-      ],
-    });
-
-    if ("error" in result.object) {
-      return NextResponse.json(result.object, { status: 400 });
+    // Check if result is an error
+    if ("error" in result) {
+      return NextResponse.json(result, { status: 400 });
     }
+
+    // Validate that we have a valid card (should be guaranteed by LangGraph)
+    const validatedCard = PSACardSchema.parse(result);
 
     // Store embeddings in Pinecone (async, don't block response)
     const cardId = randomUUID();
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
-    storeCardEmbeddings(cardId, result.object, buffer, mimeType).catch((error) => {
+    storeCardEmbeddings(cardId, validatedCard, buffer, file.type).catch((error) => {
       console.error("Failed to store embeddings:", error);
       // Don't fail the request if embedding storage fails
     });
 
     return NextResponse.json({
-      ...result.object,
+      ...validatedCard,
+      certification: result.certification, // Include certification result from LangGraph
       cardId, // Include the generated card ID in the response
     });
   } catch (error: any) {

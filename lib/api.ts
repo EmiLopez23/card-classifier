@@ -1,4 +1,4 @@
-import { ErrorResponse, PSACard } from "./schemas";
+import { ErrorResponse, PSACardWithCertification } from "./schemas";
 
 export const analyzeCard = async (formData: FormData) => {
   const response = await fetch("/api/analyze-card", {
@@ -9,5 +9,5 @@ export const analyzeCard = async (formData: FormData) => {
     const error = (await response.json()) as ErrorResponse;
     throw new Error(error.reason);
   }
-  return (await response.json()) as PSACard;
+  return (await response.json()) as PSACardWithCertification;
 };

@@ -1,4 +1,4 @@
-import { PSACard } from "@/lib/schemas";
+import { PSACardWithCertification } from "@/lib/schemas";
 import { useEffect, useMemo, useState } from "react";
 import { analyzeCard } from "@/lib/api";
 
@@ -8,7 +8,7 @@ export const useCardAnalyzer = () => {
     file: File;
     fileName: string;
     status: "pending" | "processing" | "done" | "error";
-    result: PSACard | null;
+    result: PSACardWithCertification | null;
     error: string | null;
     retryCount: number;
     nextAttemptAt?: number;

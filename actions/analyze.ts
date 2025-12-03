@@ -1,8 +1,5 @@
 "use server";
-import { SYSTEM_PROMPT, USER_PROMPT } from "@/lib/const";
-import { errorSchema, PSACardSchema } from "@/lib/schemas";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { analyzeCardWithLangGraph } from "@/lib/langgraph-agent";
 
 export async function analyzeCard(formData: FormData) {
   const file = formData.get("file") as File | null;
@@ -17,20 +14,24 @@ export async function analyzeCard(formData: FormData) {
   const base64 = buffer.toString("base64");
   const mimeType = file.type;
 
-  const result = await generateObject({
-    model: google("gemini-2.5-flash"),
-    schema: PSACardSchema.or(errorSchema),
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: USER_PROMPT },
-          { type: "image", image: `data:${mimeType};base64,${base64}` },
-        ],
-      },
-    ],
-  });
+  // Use LangGraph state machine to analyze the card
+  const result = await analyzeCardWithLangGraph(base64, mimeType);
 
-  return result.object;
+  // Return the validated card if successful, otherwise return error
+  if (result.error) {
+    return result.error;
+  }
+
+  if (!result.validatedCard) {
+    return {
+      error: "image_not_supported" as const,
+      reason: "Failed to validate card",
+    };
+  }
+
+  // Include certification result in the response
+  return {
+    ...result.validatedCard,
+    certification: result.certificationResult,
+  };
 }

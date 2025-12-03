@@ -70,6 +70,20 @@ export const PSACardSchema = z.object({
 
 export type PSACard = z.infer<typeof PSACardSchema>;
 
+// Certification result schema
+export const certificationResultSchema = z.object({
+  isValid: z.boolean(),
+  certificationNumber: z.string().optional(),
+  details: z.any().optional(),
+});
+
+export type CertificationResult = z.infer<typeof certificationResultSchema>;
+
+// Extended PSACard with certification
+export type PSACardWithCertification = PSACard & {
+  certification?: CertificationResult;
+};
+
 // Error response schema
 export const errorSchema = z.object({
   error: z.literal("image_not_supported"),
