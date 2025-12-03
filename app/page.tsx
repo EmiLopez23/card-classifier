@@ -1,79 +1,67 @@
 "use client";
 
-import { useState } from "react";
-import { useCardAnalyzer } from "@/hooks";
-import { toast } from "sonner";
-import UploadCard from "@/components/upload-card";
-import ResultCard from "@/components/result-card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Upload, Search, Loader2 } from "lucide-react";
+import { useQueryState } from "nuqs";
+import UploadTab from "@/components/tabs/upload";
+import { Suspense } from "react";
+import SearchTab from "@/components/tabs/search";
 
-export default function Home() {
-  const [files, setFiles] = useState<File[] | undefined>();
-  const { isAnalyzing, items, enqueue, clear } = useCardAnalyzer();
-
-  const handleDrop = (acceptedFiles: File[]) => {
-    setFiles(acceptedFiles);
-    // new selection resets previous results
-    clear();
-  };
-
-  const handleError = (error: Error) => {
-    toast.error(error.message);
-  };
-
-  const handleSubmit = async () => {
-    if (!files || files.length === 0) return;
-    enqueue(files);
-    setFiles(undefined);
-  };
+export function Home() {
+  const [tab, setTab] = useQueryState("upload", {
+    defaultValue: "upload",
+  });
 
   return (
-    <div className="min-h-screen px-4 py-12 flex flex-col gap-4">
+    <div className="min-h-screen px-4 py-12 flex flex-col gap-6">
       {/* Hero Section */}
-      <div className="text-center space-y-4">
+      <header className="text-center space-y-4">
         <h1 className="text-5xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-6xl">
           Card Classifier
         </h1>
         <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
           Upload your PSA certified NBA card for intelligent classification and
-          analysis
+          search similar cards using multimodal RAG
         </p>
-      </div>
-      <div className="gap-4 flex-1 grid grid-cols-2">
-        {/* Upload Card */}
+      </header>
 
-        <UploadCard
-          files={files}
-          isAnalyzing={isAnalyzing}
-          handleDrop={handleDrop}
-          handleError={handleError}
-          handleSubmit={handleSubmit}
-        />
-        <div className="flex flex-col gap-3">
-          {(!items || items.length === 0) && (
-            <ResultCard result={null} error={null} loading={false} />
-          )}
-          {items.map((item) => (
-            <div key={item.id} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  {item.fileName}
-                </p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {item.status === "pending" && "Queued"}
-                  {item.status === "processing" && "Processing"}
-                  {item.status === "done" && "Completed"}
-                  {item.status === "error" && "Error"}
-                </p>
-              </div>
-              <ResultCard
-                result={item.result}
-                error={item.error}
-                loading={item.status === "processing"}
-              />
-            </div>
-          ))}
+      {/* Tabs Section */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full flex-1">
+        <div className="flex justify-center mb-2">
+          <TabsList>
+            <TabsTrigger value="upload">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </TabsTrigger>
+            <TabsTrigger value="search">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </TabsTrigger>
+          </TabsList>
         </div>
-      </div>
+
+        {/* Upload Tab */}
+        <TabsContent
+          value="upload"
+          className="h-full flex flex-col gap-4 items-end"
+        >
+          <UploadTab />
+        </TabsContent>
+
+        {/* Search Tab */}
+        <TabsContent value="search" className="flex flex-col gap-4">
+          <SearchTab />
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+// Wrap the Home component in a suspense boundary to prevent hydration errors and build errors
+export default function HomePage() {
+  return (
+    <Suspense fallback={<Loader2 className="h-4 w-4 animate-spin" />}>
+      <Home />
+    </Suspense>
   );
 }

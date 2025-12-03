@@ -3,6 +3,7 @@ import {
   generateTextEmbedding,
   generateCLIPImageEmbedding,
   createCardTextDescription,
+  generateCLIPTextEmbedding,
 } from "./embeddings";
 import { PSACard } from "./schemas";
 import { RawImage } from "@xenova/transformers";
@@ -22,20 +23,22 @@ export interface CardVectorRecord {
 export async function storeCardEmbeddings(
   cardId: string,
   cardData: PSACard,
-  imageBuffer: Buffer
+  imageBuffer: Buffer,
+  mimeType?: string
 ): Promise<void> {
   try {
     const textIndex = getTextIndex();
     const imageIndex = getImageIndex();
-    const namespace = "cards"; // Using a single namespace for all cards
+    const namespace = "cards";
 
     // Generate text description and embedding
     const textDescription = createCardTextDescription(cardData);
     const textEmbedding = await generateTextEmbedding(textDescription);
 
     // Convert Buffer to RawImage and generate image embedding
+    // RawImage.read() can automatically detect the image format from the buffer
     const uint8Array = new Uint8Array(imageBuffer);
-    const blob = new Blob([uint8Array], { type: "image/png" });
+    const blob = new Blob([uint8Array], { type: mimeType || "image/jpeg" });
     const rawImage = await RawImage.fromBlob(blob);
     const imageEmbedding = await generateCLIPImageEmbedding(rawImage);
 
@@ -114,14 +117,20 @@ export interface HybridSearchParams {
 
 /**
  * Perform hybrid search combining text and image embeddings
+ *
+ * Queries both text and image indexes in parallel, combines results by card ID,
+ * and returns weighted scores based on textWeight and imageWeight parameters.
+ *
+ * For metadata-only searches (empty query), uses a generic "card" query to
+ * generate embeddings, with filters doing the heavy lifting.
  */
 export async function hybridSearch(params: HybridSearchParams): Promise<any[]> {
   const {
     query,
-    textWeight = 0.5,
-    imageWeight = 0.5,
+    textWeight = 0.6,
+    imageWeight = 0.4,
     topK = 10,
-    filter,
+    filter = {},
   } = params;
 
   try {
@@ -129,93 +138,84 @@ export async function hybridSearch(params: HybridSearchParams): Promise<any[]> {
     const imageIndex = getImageIndex();
     const namespace = "cards";
 
-    // Generate both embeddings from the text query
-    const [textEmbedding, clipTextEmbedding] = await Promise.all([
-      generateTextEmbedding(query),
-      // CLIP text embedding will match against CLIP image embeddings
-      import("./embeddings").then((m) => m.generateCLIPTextEmbedding(query)),
+    // For empty queries (metadata-only search), use a generic term
+    const searchQuery = query.trim() || "card";
+
+    // Generate embeddings for the query
+    const textEmbedding = await generateTextEmbedding(searchQuery);
+
+    // Note: For true image-to-image search, we'd need an image query
+    // For now, we use the same text-based approach for both indexes
+    const imageEmbedding = await generateCLIPTextEmbedding(searchQuery); // Placeholder - same embedding for both
+
+    // Query both indexes in parallel (get more results to merge)
+    const [textResults, imageResults] = await Promise.all([
+      textIndex.namespace(namespace).query({
+        vector: textEmbedding,
+        topK: topK * 2,
+        includeMetadata: true,
+        filter: Object.keys(filter).length > 0 ? filter : undefined,
+      }),
+      imageIndex.namespace(namespace).query({
+        vector: imageEmbedding,
+        topK: topK * 2,
+        includeMetadata: true,
+        filter: Object.keys(filter).length > 0 ? filter : undefined,
+      }),
     ]);
 
-    // Query text index
-    const textResults = await textIndex.namespace(namespace).query({
-      vector: textEmbedding,
-      topK: topK * 2, // Get more candidates for reranking
-      includeMetadata: true,
-      filter,
+    // Create a map to combine scores by card ID
+    const combinedScores = new Map<string, any>();
+
+    // Process text results
+    (textResults.matches || []).forEach((match) => {
+      if (!match.metadata) return;
+
+      combinedScores.set(match.id, {
+        cardId: match.id,
+        textScore: match.score || 0,
+        imageScore: 0,
+        combinedScore: 0,
+        metadata: match.metadata,
+      });
     });
 
-    // Query image index using CLIP text embedding
-    const imageResults = await imageIndex.namespace(namespace).query({
-      vector: clipTextEmbedding,
-      topK: topK * 2,
-      includeMetadata: true,
-      filter,
+    // Process image results and merge
+    (imageResults.matches || []).forEach((match) => {
+      if (!match.metadata) return;
+
+      const existing = combinedScores.get(match.id);
+
+      if (existing) {
+        // Card exists in both results - update image score
+        existing.imageScore = match.score || 0;
+      } else {
+        // Card only in image results
+        combinedScores.set(match.id, {
+          cardId: match.id,
+          textScore: 0,
+          imageScore: match.score || 0,
+          combinedScore: 0,
+          metadata: match.metadata,
+        });
+      }
     });
 
-    // Merge and rerank results
-    const mergedResults = mergeResults(
-      textResults.matches || [],
-      imageResults.matches || [],
-      textWeight,
-      imageWeight
-    );
+    // Calculate combined scores and sort
+    const results = Array.from(combinedScores.values())
+      .map((result) => ({
+        ...result,
+        combinedScore:
+          result.textScore * textWeight + result.imageScore * imageWeight,
+      }))
+      .sort((a, b) => b.combinedScore - a.combinedScore)
+      .slice(0, topK);
 
-    // Return top K results
-    return mergedResults.slice(0, topK);
+    console.log(`Hybrid search returned ${results.length} results`);
+
+    return results;
   } catch (error) {
     console.error("Error performing hybrid search:", error);
     throw new Error("Failed to perform hybrid search");
   }
-}
-
-/**
- * Merge text and image search results with weighted scoring
- */
-function mergeResults(
-  textMatches: any[],
-  imageMatches: any[],
-  textWeight: number,
-  imageWeight: number
-): any[] {
-  // Create a map of cardId -> combined score
-  const scoreMap = new Map<string, any>();
-
-  // Process text results
-  for (const match of textMatches) {
-    const cardId = match.metadata?.cardId;
-    if (!cardId) continue;
-
-    scoreMap.set(cardId, {
-      cardId,
-      metadata: match.metadata,
-      textScore: match.score || 0,
-      imageScore: 0,
-      combinedScore: (match.score || 0) * textWeight,
-    });
-  }
-
-  // Process image results
-  for (const match of imageMatches) {
-    const cardId = match.metadata?.cardId;
-    if (!cardId) continue;
-
-    if (scoreMap.has(cardId)) {
-      const existing = scoreMap.get(cardId);
-      existing.imageScore = match.score || 0;
-      existing.combinedScore += (match.score || 0) * imageWeight;
-    } else {
-      scoreMap.set(cardId, {
-        cardId,
-        metadata: match.metadata,
-        textScore: 0,
-        imageScore: match.score || 0,
-        combinedScore: (match.score || 0) * imageWeight,
-      });
-    }
-  }
-
-  // Convert to array and sort by combined score
-  return Array.from(scoreMap.values()).sort(
-    (a, b) => b.combinedScore - a.combinedScore
-  );
 }

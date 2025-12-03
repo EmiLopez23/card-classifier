@@ -1,18 +1,15 @@
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { PSACardSchema, errorSchema } from "@/lib/schemas";
-import { storeCardEmbeddings } from "@/lib/vector-store";
+import { analyzeCard } from "@/actions/analyze";
 import { randomUUID } from "crypto";
-import { SYSTEM_PROMPT, USER_PROMPT } from "@/lib/const";
+import { PSACardSchema } from "@/lib/schemas";
 
-export const maxDuration = 30;
+export const maxDuration = 60; // Increased for full agent pipeline
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    const hint = formData.get("hint") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -45,48 +42,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert file to base64 for AI processing
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString("base64");
-    const mimeType = file.type;
-
-    const result = await generateObject({
-      model: google("gemini-2.5-flash"),
-      schema: PSACardSchema.or(errorSchema),
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: USER_PROMPT,
-            },
-            {
-              type: "image",
-              image: `data:${mimeType};base64,${base64}`,
-            },
-          ],
-        },
-      ],
-    });
-
-    if ("error" in result.object) {
-      return NextResponse.json(result.object, { status: 400 });
-    }
-
-    // Store embeddings in Pinecone (async, don't block response)
+    // Generate card ID upfront
     const cardId = randomUUID();
 
-    storeCardEmbeddings(cardId, result.object, buffer).catch((error) => {
-      console.error("Failed to store embeddings:", error);
-      // Don't fail the request if embedding storage fails
-    });
+    // Use LangGraph-based analyzeCard action with full pipeline
+    // This now handles: extract → validate → certify → describe → embeddings → save
+    const result = await analyzeCard(formData, cardId);
 
+    // Check if result is an error
+    if ("error" in result) {
+      return NextResponse.json(result, { status: 400 });
+    }
+
+    // Validate that we have a valid card (should be guaranteed by LangGraph)
+    const validatedCard = PSACardSchema.parse(result);
+
+    // All processing (including embeddings and storage) is now done by the agent
     return NextResponse.json({
-      ...result.object,
-      cardId, // Include the generated card ID in the response
+      ...validatedCard,
+      certification: result.certification,
+      description: result.description,
+      webSearchResults: result.webSearchResults,
+      savedToDatabase: result.savedToDatabase,
+      cardId: result.cardId,
     });
   } catch (error: any) {
     console.error("Request processing error:", error);

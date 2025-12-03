@@ -70,6 +70,20 @@ export const PSACardSchema = z.object({
 
 export type PSACard = z.infer<typeof PSACardSchema>;
 
+// Certification result schema
+export const certificationResultSchema = z.object({
+  isValid: z.boolean(),
+  certificationNumber: z.string().optional(),
+  details: z.any().optional(),
+});
+
+export type CertificationResult = z.infer<typeof certificationResultSchema>;
+
+// Extended PSACard with certification
+export type PSACardWithCertification = PSACard & {
+  certification?: CertificationResult;
+};
+
 // Error response schema
 export const errorSchema = z.object({
   error: z.literal("image_not_supported"),
@@ -77,3 +91,27 @@ export const errorSchema = z.object({
 });
 
 export type ErrorResponse = z.infer<typeof errorSchema>;
+
+export const searchCardsResponseSchema = z.object({
+  query: z.string().optional(),
+  parameters: z.object({
+    textWeight: z.number().optional(),
+    imageWeight: z.number().optional(),
+    topK: z.number().optional(),
+    filters: z.record(z.string(), z.any()).optional(),
+  }),
+  resultCount: z.number(),
+  results: z.array(
+    z.object({
+      cardId: z.string(),
+      scores: z.object({
+        text: z.number(),
+        image: z.number(),
+        combined: z.number(),
+      }),
+      card: z.array(PSACardSchema),
+    })
+  ),
+});
+
+export type SearchCardsResponse = z.infer<typeof searchCardsResponseSchema>;

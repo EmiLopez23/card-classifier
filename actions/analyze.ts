@@ -1,36 +1,55 @@
 "use server";
-import { SYSTEM_PROMPT, USER_PROMPT } from "@/lib/const";
-import { errorSchema, PSACardSchema } from "@/lib/schemas";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { executeAnalyzerGraph } from "@/lib/agent";
+import { randomUUID } from "crypto";
 
-export async function analyzeCard(formData: FormData) {
+export async function analyzeCard(formData: FormData, cardId?: string) {
   const file = formData.get("file") as File | null;
+  const userHint = formData.get("hint") as string | null;
 
   if (!file) {
-    return { error: "image_not_supported", reason: "No file provided" as const };
+    return {
+      error: "image_not_supported",
+      reason: "No file provided" as const,
+    };
   }
 
-  // Convert file to base64 for AI processing
+  // Convert file to base64 and buffer for AI processing and embeddings
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   const base64 = buffer.toString("base64");
   const mimeType = file.type;
 
-  const result = await generateObject({
-    model: google("gemini-2.5-flash"),
-    schema: PSACardSchema.or(errorSchema),
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: USER_PROMPT },
-          { type: "image", image: `data:${mimeType};base64,${base64}` },
-        ],
-      },
-    ],
-  });
+  // Generate card ID if not provided
+  const id = cardId || randomUUID();
 
-  return result.object;
+  // Use LangGraph state machine with full pipeline
+  const result = await executeAnalyzerGraph(
+    base64,
+    mimeType,
+    id,
+    buffer,
+    userHint || undefined
+  );
+
+  // Return the validated card if successful, otherwise return error
+  if (result.error) {
+    return result.error;
+  }
+
+  if (!result.validatedCard) {
+    return {
+      error: "image_not_supported" as const,
+      reason: "Failed to validate card",
+    };
+  }
+
+  // Include all results from the agent
+  return {
+    ...result.validatedCard,
+    certification: result.certificationResult,
+    description: result.description,
+    webSearchResults: result.webSearchResults,
+    savedToDatabase: result.savedToDatabase,
+    cardId: result.cardId,
+  };
 }

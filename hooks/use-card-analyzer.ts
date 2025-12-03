@@ -1,4 +1,4 @@
-import { PSACard } from "@/lib/schemas";
+import { PSACardWithCertification } from "@/lib/schemas";
 import { useEffect, useMemo, useState } from "react";
 import { analyzeCard } from "@/lib/api";
 
@@ -7,8 +7,9 @@ export const useCardAnalyzer = () => {
     id: string;
     file: File;
     fileName: string;
+    hint?: string;
     status: "pending" | "processing" | "done" | "error";
-    result: PSACard | null;
+    result: PSACardWithCertification | null;
     error: string | null;
     retryCount: number;
     nextAttemptAt?: number;
@@ -39,8 +40,9 @@ export const useCardAnalyzer = () => {
   };
 
   useEffect(() => {
-    const processingCount = items.filter((it) => it.status === "processing")
-      .length;
+    const processingCount = items.filter(
+      (it) => it.status === "processing"
+    ).length;
     const capacity = Math.max(0, MAX_CONCURRENCY - processingCount);
     if (capacity === 0) return;
 
@@ -48,7 +50,10 @@ export const useCardAnalyzer = () => {
     const candidates: number[] = [];
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      if (it.status === "pending" && (!it.nextAttemptAt || it.nextAttemptAt <= now)) {
+      if (
+        it.status === "pending" &&
+        (!it.nextAttemptAt || it.nextAttemptAt <= now)
+      ) {
         candidates.push(i);
         if (candidates.length >= capacity) break;
       }
@@ -67,6 +72,9 @@ export const useCardAnalyzer = () => {
         try {
           const formData = new FormData();
           formData.append("file", target.file);
+          if (target.hint) {
+            formData.append("hint", target.hint);
+          }
           const response = await analyzeCard(formData);
           setItems((prev) =>
             prev.map((it, j) =>
@@ -110,7 +118,7 @@ export const useCardAnalyzer = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
-  const enqueue = (files: File[]) => {
+  const enqueue = (files: File[], hint?: string) => {
     if (!files || files.length === 0) return;
     setItems((prev) => [
       ...prev,
@@ -118,6 +126,7 @@ export const useCardAnalyzer = () => {
         id: crypto?.randomUUID?.() ?? `${Date.now()}-${file.name}`,
         file,
         fileName: file.name,
+        hint,
         status: "pending" as const,
         result: null,
         error: null,
