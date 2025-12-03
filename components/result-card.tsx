@@ -43,7 +43,7 @@ export default function ResultCard({
             <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Analyzing card...
             </p>
-            <AnalysisProgress loading={loading} />
+            {/* <AnalysisProgress loading={loading} /> */}
           </div>
         </CardContent>
       </Card>

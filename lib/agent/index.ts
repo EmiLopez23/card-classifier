@@ -109,3 +109,48 @@ export async function executeAnalyzerGraph(
         cardId: result.cardId,
       };
 }
+
+/**
+ * Stream agent execution - yields intermediate results after each tool
+ *
+ * @param imageBase64 - Base64 encoded image data
+ * @param mimeType - Image MIME type
+ * @param cardId - Unique card identifier
+ * @param imageBuffer - Raw image buffer for embeddings
+ * @param userHint - Optional user guidance for analysis
+ * @yields Step-by-step updates as each tool executes
+ */
+export async function* streamAnalyzerGraph(
+  imageBase64: string,
+  mimeType: string,
+  cardId: string,
+  imageBuffer: Buffer,
+  userHint?: string
+) {
+  const stream = await agent.stream(
+    {
+      imageBase64,
+      mimeType,
+      imageBuffer,
+      cardId,
+      userHint,
+      currentStep: "extract",
+    },
+    {
+      streamMode: "updates", // Get updates after each node execution
+    }
+  );
+
+  for await (const event of stream) {
+    // event contains: { nodeName: { ...stateUpdate } }
+    const [nodeName, stateUpdate] = Object.entries(event)[0];
+
+    yield {
+      step: nodeName,
+      timestamp: new Date().toISOString(),
+      data: stateUpdate,
+      currentStep: stateUpdate.currentStep,
+      error: stateUpdate.error,
+    };
+  }
+}
