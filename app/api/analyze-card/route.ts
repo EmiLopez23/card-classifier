@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeCard } from "@/actions/analyze";
-import { storeCardEmbeddings } from "@/lib/vector-store";
 import { randomUUID } from "crypto";
 import { PSACardSchema } from "@/lib/schemas";
 
-export const maxDuration = 30;
+export const maxDuration = 60; // Increased for full agent pipeline
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    const hint = formData.get("hint") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -42,8 +42,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use LangGraph-based analyzeCard action
-    const result = await analyzeCard(formData);
+    // Generate card ID upfront
+    const cardId = randomUUID();
+
+    // Use LangGraph-based analyzeCard action with full pipeline
+    // This now handles: extract → validate → certify → describe → embeddings → save
+    const result = await analyzeCard(formData, cardId);
 
     // Check if result is an error
     if ("error" in result) {
@@ -53,20 +57,14 @@ export async function POST(request: NextRequest) {
     // Validate that we have a valid card (should be guaranteed by LangGraph)
     const validatedCard = PSACardSchema.parse(result);
 
-    // Store embeddings in Pinecone (async, don't block response)
-    const cardId = randomUUID();
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    storeCardEmbeddings(cardId, validatedCard, buffer, file.type).catch((error) => {
-      console.error("Failed to store embeddings:", error);
-      // Don't fail the request if embedding storage fails
-    });
-
+    // All processing (including embeddings and storage) is now done by the agent
     return NextResponse.json({
       ...validatedCard,
-      certification: result.certification, // Include certification result from LangGraph
-      cardId, // Include the generated card ID in the response
+      certification: result.certification,
+      description: result.description,
+      webSearchResults: result.webSearchResults,
+      savedToDatabase: result.savedToDatabase,
+      cardId: result.cardId,
     });
   } catch (error: any) {
     console.error("Request processing error:", error);

@@ -14,6 +14,7 @@ import { useQueryState } from "nuqs";
 
 export default function Home() {
   const [files, setFiles] = useState<File[] | undefined>();
+  const [hint, setHint] = useState<string>("");
   const [tab, setTab] = useQueryState("upload", {
     defaultValue: "upload",
   });
@@ -37,8 +38,9 @@ export default function Home() {
 
   const handleSubmit = async () => {
     if (!files || files.length === 0) return;
-    enqueue(files);
+    enqueue(files, hint || undefined);
     setFiles(undefined);
+    setHint("");
     toast.success("Card uploaded! Wait 10+ seconds before searching.");
   };
 
@@ -87,6 +89,8 @@ export default function Home() {
           <UploadCard
             files={files}
             isAnalyzing={isAnalyzing}
+            hint={hint}
+            onHintChange={setHint}
             handleDrop={handleDrop}
             handleError={handleError}
             handleSubmit={handleSubmit}

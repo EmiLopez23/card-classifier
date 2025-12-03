@@ -1,10 +1,30 @@
 import { PSACardWithCertification } from "@/lib/schemas";
 import { Card, CardContent } from "./ui/card";
-import { FileText, Loader2, XCircle, CheckCircle2, AlertCircle, ExternalLink, Image, CheckCircle, Search } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  XCircle,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Image,
+  CheckCircle,
+  Search,
+  FileType,
+  Database,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface ResultCardProps {
-  result: PSACardWithCertification | null;
+  result:
+    | (PSACardWithCertification & {
+        description?: string;
+        webSearchResults?: any[];
+        savedToDatabase?: boolean;
+        cardId?: string;
+      })
+    | null;
   error: string | null;
   loading: boolean;
 }
@@ -67,9 +87,20 @@ export default function ResultCard({
   return (
     <Card className="shadow-none">
       <CardContent className="flex-1 flex flex-col gap-4 justify-between">
+        {/* Database Status */}
+        {result.savedToDatabase && result.cardId && (
+          <DatabaseStatus cardId={result.cardId} />
+        )}
         {/* Certification Status */}
         {result.certification && (
           <CertificationStatus certification={result.certification} />
+        )}
+        {/* AI-Generated Description */}
+        {result.description && (
+          <AIDescription
+            description={result.description}
+            webSearchResults={result.webSearchResults}
+          />
         )}
         {/* PSA Information */}
         <PSAInformation psa={result.psa} />
@@ -84,17 +115,97 @@ export default function ResultCard({
   );
 }
 
-const CertificationStatus = ({ 
-  certification 
-}: { 
-  certification: PSACardWithCertification["certification"] 
+const DatabaseStatus = ({ cardId }: { cardId: string }) => {
+  return (
+    <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+      <div className="flex items-center gap-2">
+        <Database className="h-5 w-5 text-green-600 dark:text-green-400" />
+        <div className="flex-1">
+          <h3 className="font-semibold text-sm text-green-900 dark:text-green-100">
+            Saved to Database
+          </h3>
+          <p className="text-xs text-green-700 dark:text-green-300">
+            Card ID:{" "}
+            <code className="bg-green-100 dark:bg-green-900 px-1 py-0.5 rounded">
+              {cardId}
+            </code>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AIDescription = ({
+  description,
+  webSearchResults,
+}: {
+  description: string;
+  webSearchResults?: any[];
+}) => {
+  const [showSources, setShowSources] = useState(false);
+
+  return (
+    <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <h3 className="font-semibold text-base text-blue-900 dark:text-blue-100">
+          AI-Generated Description
+        </h3>
+      </div>
+      <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed whitespace-pre-wrap">
+        {description}
+      </p>
+      {webSearchResults && webSearchResults.length > 0 && (
+        <div className="mt-3">
+          <button
+            onClick={() => setShowSources(!showSources)}
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+          >
+            {showSources ? "Hide" : "Show"} Web Sources (
+            {webSearchResults.length})
+          </button>
+          {showSources && (
+            <div className="mt-2 space-y-2">
+              {webSearchResults.map((result, idx) => (
+                <a
+                  key={idx}
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs p-2 bg-white dark:bg-neutral-800 rounded border border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
+                >
+                  <div className="font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                    {result.title} <ExternalLink className="h-3 w-3" />
+                  </div>
+                  {result.content && (
+                    <div className="text-neutral-600 dark:text-neutral-400 mt-1 line-clamp-2">
+                      {result.content}
+                    </div>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CertificationStatus = ({
+  certification,
+}: {
+  certification: PSACardWithCertification["certification"];
 }) => {
   if (!certification) return null;
 
   const isValid = certification.isValid;
   const certNumber = certification.certificationNumber;
   const details = certification.details;
-  const psaUrl = details?.url || (certNumber ? `https://www.psacard.com/cert/${certNumber}` : null);
+  const psaUrl =
+    details?.url ||
+    (certNumber ? `https://www.psacard.com/cert/${certNumber}` : null);
 
   return (
     <div className="border rounded-lg p-3 bg-neutral-50 dark:bg-neutral-900">
@@ -120,11 +231,13 @@ const CertificationStatus = ({
       </div>
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-1 rounded ${
-            isValid 
-              ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300" 
-              : "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300"
-          }`}>
+          <span
+            className={`text-xs px-2 py-1 rounded ${
+              isValid
+                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                : "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300"
+            }`}
+          >
             {isValid ? "Verified" : "Pending Verification"}
           </span>
         </div>
@@ -181,7 +294,11 @@ const PSAInformation = ({ psa }: { psa: PSACardWithCertification["psa"] }) => {
   );
 };
 
-const PlayerInformation = ({ player }: { player: PSACardWithCertification["player"] }) => {
+const PlayerInformation = ({
+  player,
+}: {
+  player: PSACardWithCertification["player"];
+}) => {
   return (
     <div>
       <h3 className="font-semibold text-lg mb-1 text-neutral-900 dark:text-neutral-100">
@@ -347,6 +464,9 @@ const AnalysisProgress = ({ loading }: { loading: boolean }) => {
     { label: "Extract", icon: Image },
     { label: "Validate", icon: CheckCircle },
     { label: "Certify", icon: Search },
+    { label: "Describe", icon: Sparkles },
+    { label: "Embed", icon: FileType },
+    { label: "Save", icon: Database },
   ];
 
   useEffect(() => {
@@ -363,7 +483,7 @@ const AnalysisProgress = ({ loading }: { loading: boolean }) => {
         }
         return prev + 1;
       });
-    }, 2000); // Change step every 2 seconds
+    }, 1500); // Change step every 1.5 seconds
 
     return () => clearInterval(interval);
   }, [loading, steps.length]);
