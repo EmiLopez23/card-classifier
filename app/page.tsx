@@ -8,11 +8,23 @@ import UploadCard from "@/components/upload-card";
 import ResultCard from "@/components/result-card";
 import CardSearch from "@/components/card-search";
 import SearchResults from "@/components/search-results";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Upload, Search } from "lucide-react";
+import { useQueryState } from "nuqs";
 
 export default function Home() {
   const [files, setFiles] = useState<File[] | undefined>();
+  const [tab, setTab] = useQueryState("upload", {
+    defaultValue: "upload",
+  });
   const { isAnalyzing, items, enqueue, clear } = useCardAnalyzer();
-  const { search, isSearching, results, error: searchError, lastQuery } = useCardSearch();
+  const {
+    search,
+    isSearching,
+    results,
+    error: searchError,
+    lastQuery,
+  } = useCardSearch();
 
   const handleDrop = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
@@ -54,56 +66,72 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Upload & Results Section */}
-      <section className="gap-4 grid grid-cols-2">
-        {/* Upload Card */}
-        <UploadCard
-          files={files}
-          isAnalyzing={isAnalyzing}
-          handleDrop={handleDrop}
-          handleError={handleError}
-          handleSubmit={handleSubmit}
-        />
-
-        {/* Upload Results */}
-        <div className="flex flex-col gap-3">
-          {(!items || items.length === 0) && (
-            <ResultCard result={null} error={null} loading={false} />
-          )}
-          {items.map((item) => (
-            <div key={item.id} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  {item.fileName}
-                </p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  {getStatusLabel(item.status)}
-                </p>
-              </div>
-              <ResultCard
-                result={item.result}
-                error={item.error}
-                loading={item.status === "processing"}
-              />
-            </div>
-          ))}
+      {/* Tabs Section */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full flex-1">
+        <div className="flex justify-center mb-2">
+          <TabsList>
+            <TabsTrigger value="upload">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </TabsTrigger>
+            <TabsTrigger value="search">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </TabsTrigger>
+          </TabsList>
         </div>
-      </section>
 
-      {/* Search Section */}
-      <section className="gap-4 grid grid-cols-2">
-        {/* Search Input */}
-        <CardSearch onSearch={handleSearch} isSearching={isSearching} />
-
-        {/* Search Results */}
-        <div className="flex flex-col">
-          <SearchResults
-            results={results}
-            loading={isSearching}
-            query={lastQuery}
+        {/* Upload Tab */}
+        <TabsContent value="upload" className="gap-4 grid grid-cols-2 h-full">
+          {/* Upload Card */}
+          <UploadCard
+            files={files}
+            isAnalyzing={isAnalyzing}
+            handleDrop={handleDrop}
+            handleError={handleError}
+            handleSubmit={handleSubmit}
           />
-        </div>
-      </section>
+
+          {/* Upload Results */}
+          <div className="flex flex-col gap-3">
+            {(!items || items.length === 0) && (
+              <ResultCard result={null} error={null} loading={false} />
+            )}
+            {items.map((item) => (
+              <div key={item.id} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between px-1">
+                  <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    {item.fileName}
+                  </p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {getStatusLabel(item.status)}
+                  </p>
+                </div>
+                <ResultCard
+                  result={item.result}
+                  error={item.error}
+                  loading={item.status === "processing"}
+                />
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Search Tab */}
+        <TabsContent value="search" className="flex flex-col gap-4">
+          {/* Search Input */}
+          <CardSearch onSearch={handleSearch} isSearching={isSearching} />
+
+          {/* Search Results */}
+          <div className="flex flex-col">
+            <SearchResults
+              results={results}
+              loading={isSearching}
+              query={lastQuery}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

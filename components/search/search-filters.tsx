@@ -5,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 import { SearchFilters, SearchWeights } from "@/types/search";
-import { SEARCH_DEFAULTS, SEARCH_PLACEHOLDERS, FILTER_LIMITS } from "@/constants/search";
+import {
+  SEARCH_DEFAULTS,
+  SEARCH_PLACEHOLDERS,
+  FILTER_LIMITS,
+} from "@/constants/search";
 
 interface SearchFiltersProps {
   filters: SearchFilters;
@@ -40,7 +44,12 @@ export function SearchFiltersPanel({
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-sm">Search Filters</h4>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={onClear} className="text-xs">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            className="text-xs"
+          >
             <X className="h-3 w-3 mr-1" />
             Clear All
           </Button>
@@ -57,14 +66,18 @@ export function SearchFiltersPanel({
             id="textWeight"
             label="Text Weight"
             value={weights.text}
-            onChange={(value) => onWeightsChange({ ...weights, text: value })}
+            onChange={(value) =>
+              onWeightsChange({ ...weights, text: value, image: 1 - value })
+            }
             description="Semantic search (meaning-based)"
           />
           <WeightSlider
             id="imageWeight"
             label="Image Weight"
             value={weights.image}
-            onChange={(value) => onWeightsChange({ ...weights, image: value })}
+            onChange={(value) =>
+              onWeightsChange({ ...weights, image: value, text: 1 - value })
+            }
             description="Visual similarity"
           />
         </div>
@@ -81,7 +94,9 @@ export function SearchFiltersPanel({
             type="text"
             placeholder={SEARCH_PLACEHOLDERS.PLAYER}
             value={filters.player || ""}
-            onChange={(e) => updateFilter("player", e.target.value || undefined)}
+            onChange={(e) =>
+              updateFilter("player", e.target.value || undefined)
+            }
             className="h-8 text-sm"
           />
         </div>
@@ -114,7 +129,10 @@ export function SearchFiltersPanel({
             placeholder={SEARCH_PLACEHOLDERS.GRADE}
             value={filters.minGrade || ""}
             onChange={(e) =>
-              updateFilter("minGrade", e.target.value ? parseInt(e.target.value) : undefined)
+              updateFilter(
+                "minGrade",
+                e.target.value ? parseInt(e.target.value) : undefined
+              )
             }
             className="h-8 text-sm"
           />
@@ -131,7 +149,10 @@ export function SearchFiltersPanel({
             placeholder={SEARCH_PLACEHOLDERS.GRADE}
             value={filters.maxGrade || ""}
             onChange={(e) =>
-              updateFilter("maxGrade", e.target.value ? parseInt(e.target.value) : undefined)
+              updateFilter(
+                "maxGrade",
+                e.target.value ? parseInt(e.target.value) : undefined
+              )
             }
             className="h-8 text-sm"
           />
@@ -150,7 +171,10 @@ export function SearchFiltersPanel({
             placeholder={SEARCH_PLACEHOLDERS.YEAR}
             value={filters.minYear || ""}
             onChange={(e) =>
-              updateFilter("minYear", e.target.value ? parseInt(e.target.value) : undefined)
+              updateFilter(
+                "minYear",
+                e.target.value ? parseInt(e.target.value) : undefined
+              )
             }
             className="h-8 text-sm"
           />
@@ -165,7 +189,10 @@ export function SearchFiltersPanel({
             placeholder={SEARCH_PLACEHOLDERS.YEAR}
             value={filters.maxYear || ""}
             onChange={(e) =>
-              updateFilter("maxYear", e.target.value ? parseInt(e.target.value) : undefined)
+              updateFilter(
+                "maxYear",
+                e.target.value ? parseInt(e.target.value) : undefined
+              )
             }
             className="h-8 text-sm"
           />
@@ -178,7 +205,9 @@ export function SearchFiltersPanel({
           <input
             type="checkbox"
             checked={filters.rookie || false}
-            onChange={(e) => updateFilter("rookie", e.target.checked ? true : undefined)}
+            onChange={(e) =>
+              updateFilter("rookie", e.target.checked ? true : undefined)
+            }
             className="rounded"
           />
           <span className="text-sm">Rookie Cards Only</span>
@@ -187,7 +216,9 @@ export function SearchFiltersPanel({
           <input
             type="checkbox"
             checked={filters.autographed || false}
-            onChange={(e) => updateFilter("autographed", e.target.checked ? true : undefined)}
+            onChange={(e) =>
+              updateFilter("autographed", e.target.checked ? true : undefined)
+            }
             className="rounded"
           />
           <span className="text-sm">Autographed Only</span>
@@ -205,7 +236,13 @@ interface WeightSliderProps {
   description: string;
 }
 
-function WeightSlider({ id, label, value, onChange, description }: WeightSliderProps) {
+function WeightSlider({
+  id,
+  label,
+  value,
+  onChange,
+  description,
+}: WeightSliderProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -230,4 +267,3 @@ function WeightSlider({ id, label, value, onChange, description }: WeightSliderP
     </div>
   );
 }
-

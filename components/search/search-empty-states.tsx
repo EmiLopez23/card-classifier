@@ -63,7 +63,7 @@ function getEmptyStateContent(
             <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
               No relevant matches found
             </h3>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md">
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md mx-auto">
               The search returned results, but they don&apos;t seem very relevant to &quot;{query}&quot;
               {bestScore !== undefined && ` (best match: ${formatScore(bestScore)})`}
             </p>

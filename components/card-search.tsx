@@ -11,7 +11,11 @@ import { SEARCH_DEFAULTS, SEARCH_PLACEHOLDERS } from "@/constants/search";
 import { SearchFiltersPanel } from "./search/search-filters";
 
 interface CardSearchProps {
-  onSearch: (query: string, filters: SearchFilters, weights: SearchWeights) => void;
+  onSearch: (
+    query: string,
+    filters: SearchFilters,
+    weights: SearchWeights
+  ) => void;
   isSearching: boolean;
 }
 
@@ -26,7 +30,6 @@ export default function CardSearch({ onSearch, isSearching }: CardSearchProps) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
     onSearch(query, filters, weights);
   };
 
@@ -45,20 +48,6 @@ export default function CardSearch({ onSearch, isSearching }: CardSearchProps) {
 
   return (
     <Card className="shadow-none">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl">Search Cards</CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(hasActiveFilters && "border-blue-500 text-blue-600")}
-          >
-            <SlidersHorizontal className="h-4 w-4 mr-2" />
-            Filters
-          </Button>
-        </div>
-      </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSearch} className="space-y-4">
           {/* Search Input */}
@@ -70,7 +59,24 @@ export default function CardSearch({ onSearch, isSearching }: CardSearchProps) {
               onChange={(e) => setQuery(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" disabled={isSearching || !query.trim()}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(
+                hasActiveFilters && "border-blue-500 text-blue-600"
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                isSearching ||
+                (!query.trim() && Object.keys(filters).length === 0)
+              }
+            >
               {isSearching ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -39,27 +39,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract and validate parameters
-    const {
-      query,
-      textWeight = 0.5,
-      imageWeight = 0.5,
-      topK = 10,
-      filters,
-    } = body;
+    const { query, textWeight = 1, imageWeight = 0, topK = 10, filters } = body;
 
     // Validate weights
     if (
       typeof textWeight !== "number" ||
       typeof imageWeight !== "number" ||
-      textWeight < 0 ||
-      textWeight > 1 ||
-      imageWeight < 0 ||
-      imageWeight > 1
+      textWeight + imageWeight !== 1
     ) {
       return NextResponse.json(
         {
           error: "invalid_request",
-          message: "Weights must be numbers between 0 and 1",
+          message: "Weights must sum to 1",
         },
         { status: 400 }
       );

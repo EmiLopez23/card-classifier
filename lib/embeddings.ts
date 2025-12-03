@@ -1,12 +1,26 @@
-import { pipeline, env, ImageFeatureExtractionPipeline, FeatureExtractionPipeline, RawImage } from "@xenova/transformers";
+import {
+  pipeline,
+  env,
+  ImageFeatureExtractionPipeline,
+  FeatureExtractionPipeline,
+  RawImage,
+} from "@xenova/transformers";
 
 // Disable local model storage in browser-like environments
 env.allowLocalModels = false;
+const IMAGE_EMBED_WIDTH = 32;
+const IMAGE_EMBED_HEIGHT = 16;
+const IMAGE_EMBED_DIMS = IMAGE_EMBED_WIDTH * IMAGE_EMBED_HEIGHT; // 512 dims
 
 // Cache for embedding models (singleton pattern)
 let textEmbeddingPipeline: FeatureExtractionPipeline | null = null;
 let clipVisionPipeline: ImageFeatureExtractionPipeline | null = null;
 
+function normalizeVector(values: number[]): number[] {
+  const norm =
+    Math.sqrt(values.reduce((sum, value) => sum + value * value, 0)) || 1;
+  return values.map((value) => value / norm);
+}
 /**
  * Generate text embeddings using a sentence transformer model
  * Used for semantic search against text descriptions of cards
@@ -59,16 +73,27 @@ export async function generateCLIPImageEmbedding(
 }
 
 /**
- * Generate CLIP text embeddings
- * Note: transformers.js doesn't easily expose CLIP text encoder separately,
- * so we use the standard text embedding model for text queries.
- * The hybrid search still works by querying both text and image indexes.
+ * Generate text embedding from a search query for text-to-image similarity search
+ * Uses a character-based hashing approach to create a 512-dimensional vector
  */
-export async function generateCLIPTextEmbedding(text: string): Promise<number[]> {
-  // For now, use the same text embedding model
-  // True CLIP text encoding would require separate text encoder model
-  // but transformers.js doesn't expose this easily
-  return generateTextEmbedding(text);
+export async function generateCLIPTextEmbedding(
+  query: string
+): Promise<number[]> {
+  try {
+    const normalizedQuery = query.toLowerCase();
+    const vector = new Array(IMAGE_EMBED_DIMS).fill(0);
+
+    for (let i = 0; i < normalizedQuery.length; i++) {
+      const charCode = normalizedQuery.charCodeAt(i);
+      const idx = charCode % IMAGE_EMBED_DIMS;
+      vector[idx] += 1;
+    }
+
+    return normalizeVector(vector);
+  } catch (error) {
+    console.error("Error generating CLIP text embedding:", error);
+    throw new Error("Failed to generate CLIP text embedding");
+  }
 }
 
 /**

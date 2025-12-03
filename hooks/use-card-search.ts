@@ -4,7 +4,11 @@ import { SEARCH_DEFAULTS } from "@/constants/search";
 import { buildPineconeFilters } from "@/lib/search-utils";
 
 interface UseCardSearchReturn {
-  search: (query: string, filters?: SearchFilters, weights?: SearchWeights) => Promise<void>;
+  search: (
+    query: string,
+    filters?: SearchFilters,
+    weights?: SearchWeights
+  ) => Promise<void>;
   isSearching: boolean;
   results: SearchResult[] | null;
   error: string | null;

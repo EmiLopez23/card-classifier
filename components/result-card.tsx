@@ -48,7 +48,7 @@ export default function ResultCard({
 
   if (!result) {
     return (
-      <Card className="shadow-none">
+      <Card className="shadow-none flex-1">
         <CardContent className="flex-1 items-center justify-center flex flex-col gap-2">
           <FileText className="size-6 text-neutral-600 dark:text-neutral-400" />
           <div className="text-center">
